@@ -25,6 +25,23 @@ def health_check():
     }
 
 
+@app.get("/")
+def root():
+    return {
+        "name": "School Management API",
+        "version": "1.0.0",
+        "message": "Welcome to the School Management API",
+        "docs": "/docs"
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy"
+    }
+
+
 @app.get("/api/v1")
 def api_info():
     return {
