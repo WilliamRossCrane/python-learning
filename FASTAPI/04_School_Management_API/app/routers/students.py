@@ -19,6 +19,27 @@ students = [
     }
 ]
 
+@router.post(
+    "/",
+    response_model=Student,
+    status_code=status.HTTP_201_CREATED
+)
+def create_student(student: StudentCreate):
+
+    new_id = max(
+        existing_student["id"]
+        for existing_student in students
+    ) + 1 if students else 1
+
+    new_student = {
+        "id": new_id,
+        **student.model_dump()
+    }
+
+    students.append(new_student)
+
+    return new_student
+
 @router.get("/", response_model=list[Student])
 def get_students():
     return students 
