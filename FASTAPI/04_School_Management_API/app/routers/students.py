@@ -82,3 +82,21 @@ def update_student(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Student not found"
     )
+
+@router.delete(
+    "/{student_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_student(student_id: int):
+
+    for index, student in enumerate(students):
+
+        if student["id"] == student_id:
+            students.pop(index)
+            return
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Student not found"
+    )
+    
