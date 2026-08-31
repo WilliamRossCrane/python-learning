@@ -60,3 +60,25 @@ def get_student(student_id: int):
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Student not found"
     )
+
+@router.put("/{student_id}", response_model=Student)
+def update_student(
+    student_id: int,
+    updated_student: StudentUpdate
+):
+
+    for index, student in enumerate(students):
+
+        if student["id"] == student_id:
+
+            students[index] = {
+                "id": student_id,
+                **updated_student.model_dump()
+            }
+
+            return students[index]
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Student not found"
+    )
