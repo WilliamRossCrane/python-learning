@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.routers import students
+
 
 app = FastAPI(
     title="School Management API",
@@ -8,31 +10,9 @@ app = FastAPI(
 )
 
 
-@app.get("/")
-def root():
-    return {
-        "name": "School Management API",
-        "version": "1.0.0",
-        "message": "Welcome to the School Management API",
-        "docs": "/docs"
-    }
+app.include_router(students.router)
 
 
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy"
-    }
-
-@app.get("/api/v1")
-def api_info():
-    return {
-        "version": "v1",
-        "description": "Version 1 of the School Management API",
-        "status": "in development",
-        "resources": []
-    }
-    
 @app.get("/")
 def root():
     return {
@@ -56,5 +36,7 @@ def api_info():
         "version": "v1",
         "description": "Version 1 of the School Management API",
         "status": "in development",
-        "resources": []
+        "resources": [
+            "students"
+        ]
     }

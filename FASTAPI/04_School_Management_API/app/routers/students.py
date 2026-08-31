@@ -84,6 +84,17 @@ def update_student(
 
         if student["id"] == student_id:
 
+            for existing_student in students:
+                if (
+                    existing_student["id"] != student_id
+                    and existing_student["email"].lower()
+                    == updated_student.email.lower()
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="A student with this email already exists"
+                    )
+
             students[index] = {
                 "id": student_id,
                 **updated_student.model_dump()
