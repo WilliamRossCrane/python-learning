@@ -5,7 +5,9 @@ from app.routers import (
     teachers,
     subjects,
     classes,
-    attendance
+    attendance,
+    assessments,
+    examples
 )
 
 
@@ -21,6 +23,8 @@ app.include_router(teachers.router)
 app.include_router(subjects.router)
 app.include_router(classes.router)
 app.include_router(attendance.router)
+app.include_router(assessments.router)
+app.include_router(examples.router)
 
 
 @app.get("/")
@@ -51,6 +55,8 @@ def api_info():
             "teachers",
             "subjects",
             "classes",
-            "attendance"
+            "attendance",
+            "assessments",
+            "examples"
         ]
     }
