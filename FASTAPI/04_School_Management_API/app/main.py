@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import students, teachers
+from app.routers import students, teachers, subjects
 
 
 app = FastAPI(
@@ -12,6 +12,7 @@ app = FastAPI(
 
 app.include_router(students.router)
 app.include_router(teachers.router)
+app.include_router(subjects.router)
 
 
 @app.get("/")
@@ -39,6 +40,7 @@ def api_info():
         "status": "in development",
         "resources": [
             "students",
-            "teachers"
+            "teachers",
+            "subjects"
         ]
     }
