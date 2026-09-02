@@ -10,7 +10,8 @@ from app.routers import (
     examples,
     weather,
     dashboard,
-    reports
+    reports,
+    tasks
 )
 
 
@@ -31,6 +32,7 @@ app.include_router(examples.router)
 app.include_router(weather.router)
 app.include_router(dashboard.router)
 app.include_router(reports.router)
+app.include_router(tasks.router)
 
 
 @app.get("/")
@@ -66,6 +68,7 @@ def api_info():
             "examples",
             "weather",
             "dashboard",
-            "reports"
+            "reports",
+            "tasks"
         ]
     }
