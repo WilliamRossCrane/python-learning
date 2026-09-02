@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 
-from app.routers import students, teachers, subjects, classes
+from app.routers import (
+    students,
+    teachers,
+    subjects,
+    classes,
+    attendance
+)
 
 
 app = FastAPI(
@@ -14,6 +20,7 @@ app.include_router(students.router)
 app.include_router(teachers.router)
 app.include_router(subjects.router)
 app.include_router(classes.router)
+app.include_router(attendance.router)
 
 
 @app.get("/")
@@ -43,6 +50,7 @@ def api_info():
             "students",
             "teachers",
             "subjects",
-            "classes"
+            "classes",
+            "attendance"
         ]
     }
