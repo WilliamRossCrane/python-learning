@@ -5,7 +5,7 @@ class SchoolClassBase(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     teacher_id: int = Field(gt=0)
     subject_id: int = Field(gt=0)
-    student_ids: list[int] = []
+    student_ids: list[int] = Field(default_factory=list)
 
 
 class SchoolClassCreate(SchoolClassBase):
