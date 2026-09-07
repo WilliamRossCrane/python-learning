@@ -1,18 +1,39 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.database import engine
+from app.database import Base, engine
+from app.models.student import StudentModel
+from app.routers import students
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    Base.metadata.create_all(
+        bind=engine
+    )
+
+    yield
 
 
 app = FastAPI(
     title="School Management API V2",
     description="A database-backed FastAPI project using SQLAlchemy.",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+
+app.include_router(
+    students.router
 )
 
 
 @app.get("/")
 def root():
+
     return {
         "name": "School Management API V2",
         "version": "2.0.0",
@@ -23,6 +44,7 @@ def root():
 
 @app.get("/health")
 def health_check():
+
     return {
         "status": "healthy"
     }
@@ -32,6 +54,7 @@ def health_check():
 def database_health_check():
 
     with engine.connect() as connection:
+
         connection.execute(
             text("SELECT 1")
         )
