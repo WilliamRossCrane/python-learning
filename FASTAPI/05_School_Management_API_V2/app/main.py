@@ -4,8 +4,16 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.database import Base, engine
+
 from app.models.student import StudentModel
-from app.routers import students
+from app.models.teacher import TeacherModel
+from app.models.subject import SubjectModel
+
+from app.routers import (
+    students,
+    teachers,
+    subjects
+)
 
 
 @asynccontextmanager
@@ -28,6 +36,14 @@ app = FastAPI(
 
 app.include_router(
     students.router
+)
+
+app.include_router(
+    teachers.router
+)
+
+app.include_router(
+    subjects.router
 )
 
 
