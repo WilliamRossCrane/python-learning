@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+if TYPE_CHECKING:
+    from app.models.school_class import SchoolClassModel
 
 
 class SubjectModel(Base):
@@ -27,4 +33,8 @@ class SubjectModel(Base):
     description: Mapped[str] = mapped_column(
         String(200),
         nullable=False
+    )
+
+    classes: Mapped[list["SchoolClassModel"]] = relationship(
+        back_populates="subject"
     )
