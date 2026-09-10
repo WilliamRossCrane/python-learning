@@ -4,11 +4,13 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.enrolment import class_enrolments
 
 
 if TYPE_CHECKING:
-    from app.models.teacher import TeacherModel
+    from app.models.student import StudentModel
     from app.models.subject import SubjectModel
+    from app.models.teacher import TeacherModel
 
 
 class SchoolClassModel(Base):
@@ -39,5 +41,10 @@ class SchoolClassModel(Base):
     )
 
     subject: Mapped["SubjectModel"] = relationship(
+        back_populates="classes"
+    )
+
+    students: Mapped[list["StudentModel"]] = relationship(
+        secondary=class_enrolments,
         back_populates="classes"
     )

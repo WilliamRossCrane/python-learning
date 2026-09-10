@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.database import Base, engine
 
+from app.models.enrolment import class_enrolments
 from app.models.school_class import SchoolClassModel
 from app.models.student import StudentModel
 from app.models.subject import SubjectModel
@@ -12,6 +13,7 @@ from app.models.teacher import TeacherModel
 
 from app.routers import (
     classes,
+    enrolments,
     students,
     subjects,
     teachers
@@ -50,6 +52,10 @@ app.include_router(
 
 app.include_router(
     classes.router
+)
+
+app.include_router(
+    enrolments.router
 )
 
 

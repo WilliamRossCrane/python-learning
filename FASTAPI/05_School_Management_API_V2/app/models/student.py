@@ -1,7 +1,14 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.enrolment import class_enrolments
+
+
+if TYPE_CHECKING:
+    from app.models.school_class import SchoolClassModel
 
 
 class StudentModel(Base):
@@ -31,4 +38,9 @@ class StudentModel(Base):
         unique=True,
         index=True,
         nullable=False
+    )
+
+    classes: Mapped[list["SchoolClassModel"]] = relationship(
+        secondary=class_enrolments,
+        back_populates="students"
     )
