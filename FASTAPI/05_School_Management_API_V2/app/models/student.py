@@ -8,6 +8,7 @@ from app.models.enrolment import class_enrolments
 
 
 if TYPE_CHECKING:
+    from app.models.attendance import AttendanceModel
     from app.models.school_class import SchoolClassModel
 
 
@@ -43,4 +44,9 @@ class StudentModel(Base):
     classes: Mapped[list["SchoolClassModel"]] = relationship(
         secondary=class_enrolments,
         back_populates="students"
+    )
+
+    attendance_records: Mapped[list["AttendanceModel"]] = relationship(
+        back_populates="student",
+        cascade="all, delete-orphan"
     )
