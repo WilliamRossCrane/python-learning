@@ -2,6 +2,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     status
 )
 
@@ -14,6 +15,7 @@ from app.models.school_class import SchoolClassModel
 from app.schemas.assessment import (
     Assessment,
     AssessmentCreate,
+    AssessmentType,
     AssessmentUpdate
 )
 
@@ -29,14 +31,45 @@ router = APIRouter(
     response_model=list[Assessment]
 )
 def get_assessments(
+    class_id: int | None = Query(default=None, gt=0),
+    assessment_type: AssessmentType | None = Query(default=None),
+    search: str | None = Query(default=None),
+    sort_order: str = Query(default="asc", pattern="^(asc|desc)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db)
 ):
 
     statement = select(
         AssessmentModel
-    ).order_by(
-        AssessmentModel.due_date
     )
+
+    if class_id is not None:
+        statement = statement.where(
+            AssessmentModel.class_id == class_id
+        )
+
+    if assessment_type is not None:
+        statement = statement.where(
+            AssessmentModel.assessment_type == assessment_type.value
+        )
+
+    if search is not None and search.strip():
+        search_term = f"%{search.strip()}%"
+        statement = statement.where(
+            AssessmentModel.title.ilike(search_term)
+        )
+
+    if sort_order == "desc":
+        statement = statement.order_by(
+            AssessmentModel.due_date.desc()
+        )
+    else:
+        statement = statement.order_by(
+            AssessmentModel.due_date.asc()
+        )
+
+    statement = statement.offset(offset).limit(limit)
 
     assessments = db.scalars(
         statement

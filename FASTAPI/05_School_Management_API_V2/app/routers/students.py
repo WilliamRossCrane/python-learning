@@ -2,10 +2,11 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     status
 )
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -28,10 +29,47 @@ router = APIRouter(
     response_model=list[Student]
 )
 def get_students(
+    year_level: int | None = Query(default=None, ge=7, le=12),
+    search: str | None = Query(default=None),
+    sort_by: str = Query(default="id", pattern="^(id|first_name|last_name|year_level|email)$"),
+    sort_order: str = Query(default="asc", pattern="^(asc|desc)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db)
 ):
 
     statement = select(StudentModel)
+
+    if year_level is not None:
+        statement = statement.where(
+            StudentModel.year_level == year_level
+        )
+
+    if search is not None and search.strip():
+        search_term = f"%{search.strip()}%"
+        statement = statement.where(
+            or_(
+                StudentModel.first_name.ilike(search_term),
+                StudentModel.last_name.ilike(search_term),
+                StudentModel.email.ilike(search_term)
+            )
+        )
+
+    sort_columns = {
+        "id": StudentModel.id,
+        "first_name": StudentModel.first_name,
+        "last_name": StudentModel.last_name,
+        "year_level": StudentModel.year_level,
+        "email": StudentModel.email
+    }
+
+    sort_column = sort_columns[sort_by]
+    if sort_order == "desc":
+        statement = statement.order_by(sort_column.desc())
+    else:
+        statement = statement.order_by(sort_column.asc())
+
+    statement = statement.offset(offset).limit(limit)
 
     students = db.scalars(
         statement

@@ -2,6 +2,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     status
 )
 
@@ -30,12 +31,37 @@ router = APIRouter(
     response_model=list[SchoolClass]
 )
 def get_classes(
+    teacher_id: int | None = Query(default=None, gt=0),
+    subject_id: int | None = Query(default=None, gt=0),
+    search: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db)
 ):
 
     statement = select(
         SchoolClassModel
     )
+
+    if teacher_id is not None:
+        statement = statement.where(
+            SchoolClassModel.teacher_id == teacher_id
+        )
+
+    if subject_id is not None:
+        statement = statement.where(
+            SchoolClassModel.subject_id == subject_id
+        )
+
+    if search is not None and search.strip():
+        search_term = f"%{search.strip()}%"
+        statement = statement.where(
+            SchoolClassModel.name.ilike(search_term)
+        )
+
+    statement = statement.order_by(
+        SchoolClassModel.name.asc()
+    ).offset(offset).limit(limit)
 
     classes = db.scalars(
         statement
