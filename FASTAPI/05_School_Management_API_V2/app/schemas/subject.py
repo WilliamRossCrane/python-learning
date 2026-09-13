@@ -1,40 +1,19 @@
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field
-)
+class SubjectPatch(BaseModel):
 
-
-class SubjectBase(BaseModel):
-
-    name: str = Field(
+    name: str | None = Field(
+        default=None,
         min_length=2,
         max_length=100
     )
 
-    code: str = Field(
+    code: str | None = Field(
+        default=None,
         min_length=2,
         max_length=10
     )
 
-    description: str = Field(
+    description: str | None = Field(
+        default=None,
         min_length=2,
         max_length=200
-    )
-
-
-class SubjectCreate(SubjectBase):
-    pass
-
-
-class SubjectUpdate(SubjectBase):
-    pass
-
-
-class Subject(SubjectBase):
-
-    id: int
-
-    model_config = ConfigDict(
-        from_attributes=True
     )

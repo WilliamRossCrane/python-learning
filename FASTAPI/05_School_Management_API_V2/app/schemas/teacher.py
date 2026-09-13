@@ -34,6 +34,29 @@ class TeacherUpdate(TeacherBase):
     pass
 
 
+class TeacherPatch(BaseModel):
+
+    first_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50
+    )
+
+    last_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50
+    )
+
+    email: EmailStr | None = None
+
+    staff_code: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=10
+    )
+
+
 class Teacher(TeacherBase):
 
     id: int

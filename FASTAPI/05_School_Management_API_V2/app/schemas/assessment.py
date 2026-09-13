@@ -1,53 +1,21 @@
-from datetime import date
-from enum import Enum
+class AssessmentPatch(BaseModel):
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field
-)
-
-
-class AssessmentType(str, Enum):
-
-    exam = "exam"
-    assignment = "assignment"
-    quiz = "quiz"
-    project = "project"
-
-
-class AssessmentBase(BaseModel):
-
-    class_id: int = Field(
+    class_id: int | None = Field(
+        default=None,
         gt=0
     )
 
-    title: str = Field(
+    title: str | None = Field(
+        default=None,
         min_length=2,
         max_length=100
     )
 
-    assessment_type: AssessmentType
+    assessment_type: AssessmentType | None = None
 
-    max_score: float = Field(
+    max_score: float | None = Field(
+        default=None,
         gt=0
     )
 
-    due_date: date
-
-
-class AssessmentCreate(AssessmentBase):
-    pass
-
-
-class AssessmentUpdate(AssessmentBase):
-    pass
-
-
-class Assessment(AssessmentBase):
-
-    id: int
-
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    due_date: date | None = None
