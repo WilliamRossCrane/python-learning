@@ -1,15 +1,18 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     status
 )
 
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.school_class import SchoolClassModel
-from app.models.student import StudentModel
+from app.services.enrolment_service import (
+    enrol_student as enrol_student_service,
+    get_class_students as get_class_students_service,
+    get_student_classes as get_student_classes_service,
+    remove_student_from_class as remove_student_from_class_service,
+)
 
 
 router = APIRouter(
@@ -28,45 +31,7 @@ def enrol_student(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    if student in school_class.students:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Student is already enrolled in this class"
-        )
-
-    school_class.students.append(
-        student
-    )
-
-    db.commit()
-
-    return {
-        "message": "Student enrolled successfully",
-        "class_id": class_id,
-        "student_id": student_id
-    }
+    return enrol_student_service(db=db, class_id=class_id, student_id=student_id)
 
 
 @router.delete(
@@ -79,40 +44,7 @@ def remove_student_from_class(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    if student not in school_class.students:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student is not enrolled in this class"
-        )
-
-    school_class.students.remove(
-        student
-    )
-
-    db.commit()
-
+    remove_student_from_class_service(db=db, class_id=class_id, student_id=student_id)
     return
 
 
@@ -124,27 +56,7 @@ def get_class_students(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    return [
-        {
-            "id": student.id,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "year_level": student.year_level,
-            "email": student.email
-        }
-        for student in school_class.students
-    ]
+    return get_class_students_service(db=db, class_id=class_id)
 
 
 @router.get(
@@ -155,23 +67,4 @@ def get_student_classes(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    return [
-        {
-            "id": school_class.id,
-            "name": school_class.name,
-            "teacher_id": school_class.teacher_id,
-            "subject_id": school_class.subject_id
-        }
-        for school_class in student.classes
-    ]
+    return get_student_classes_service(db=db, student_id=student_id)

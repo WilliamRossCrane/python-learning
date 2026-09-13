@@ -1,22 +1,26 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     status
 )
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.assessment import AssessmentModel
-from app.models.school_class import SchoolClassModel
 from app.schemas.assessment import (
     Assessment,
     AssessmentCreate,
     AssessmentType,
     AssessmentUpdate
+)
+from app.services.assessment_service import (
+    create_assessment as create_assessment_service,
+    delete_assessment as delete_assessment_service,
+    get_assessment as get_assessment_service,
+    get_assessments as get_assessments_service,
+    get_class_assessments as get_class_assessments_service,
+    update_assessment as update_assessment_service,
 )
 
 
@@ -40,42 +44,15 @@ def get_assessments(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        AssessmentModel
+    return get_assessments_service(
+        db=db,
+        class_id=class_id,
+        assessment_type=assessment_type,
+        search=search,
+        sort_order=sort_order,
+        limit=limit,
+        offset=offset,
     )
-
-    if class_id is not None:
-        statement = statement.where(
-            AssessmentModel.class_id == class_id
-        )
-
-    if assessment_type is not None:
-        statement = statement.where(
-            AssessmentModel.assessment_type == assessment_type.value
-        )
-
-    if search is not None and search.strip():
-        search_term = f"%{search.strip()}%"
-        statement = statement.where(
-            AssessmentModel.title.ilike(search_term)
-        )
-
-    if sort_order == "desc":
-        statement = statement.order_by(
-            AssessmentModel.due_date.desc()
-        )
-    else:
-        statement = statement.order_by(
-            AssessmentModel.due_date.asc()
-        )
-
-    statement = statement.offset(offset).limit(limit)
-
-    assessments = db.scalars(
-        statement
-    ).all()
-
-    return assessments
 
 
 @router.get(
@@ -87,18 +64,7 @@ def get_assessment(
     db: Session = Depends(get_db)
 ):
 
-    assessment = db.get(
-        AssessmentModel,
-        assessment_id
-    )
-
-    if assessment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
-        )
-
-    return assessment
+    return get_assessment_service(db=db, assessment_id=assessment_id)
 
 
 @router.post(
@@ -111,30 +77,7 @@ def create_assessment(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        assessment.class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    new_assessment = AssessmentModel(
-        class_id=assessment.class_id,
-        title=assessment.title,
-        assessment_type=assessment.assessment_type.value,
-        max_score=assessment.max_score,
-        due_date=assessment.due_date
-    )
-
-    db.add(new_assessment)
-    db.commit()
-    db.refresh(new_assessment)
-
-    return new_assessment
+    return create_assessment_service(db=db, assessment=assessment)
 
 
 @router.put(
@@ -147,38 +90,7 @@ def update_assessment(
     db: Session = Depends(get_db)
 ):
 
-    assessment = db.get(
-        AssessmentModel,
-        assessment_id
-    )
-
-    if assessment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
-        )
-
-    school_class = db.get(
-        SchoolClassModel,
-        updated_assessment.class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    assessment.class_id = updated_assessment.class_id
-    assessment.title = updated_assessment.title
-    assessment.assessment_type = updated_assessment.assessment_type.value
-    assessment.max_score = updated_assessment.max_score
-    assessment.due_date = updated_assessment.due_date
-
-    db.commit()
-    db.refresh(assessment)
-
-    return assessment
+    return update_assessment_service(db=db, assessment_id=assessment_id, updated_assessment=updated_assessment)
 
 
 @router.delete(
@@ -190,20 +102,7 @@ def delete_assessment(
     db: Session = Depends(get_db)
 ):
 
-    assessment = db.get(
-        AssessmentModel,
-        assessment_id
-    )
-
-    if assessment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
-        )
-
-    db.delete(assessment)
-    db.commit()
-
+    delete_assessment_service(db=db, assessment_id=assessment_id)
     return
 
 
@@ -216,27 +115,4 @@ def get_class_assessments(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    statement = select(
-        AssessmentModel
-    ).where(
-        AssessmentModel.class_id == class_id
-    ).order_by(
-        AssessmentModel.due_date
-    )
-
-    assessments = db.scalars(
-        statement
-    ).all()
-
-    return assessments
+    return get_class_assessments_service(db=db, class_id=class_id)

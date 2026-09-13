@@ -1,19 +1,23 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     status
 )
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.subject import SubjectModel
 from app.schemas.subject import (
     Subject,
     SubjectCreate,
     SubjectUpdate
+)
+from app.services.subject_service import (
+    create_subject as create_subject_service,
+    delete_subject as delete_subject_service,
+    get_subject as get_subject_service,
+    get_subjects as get_subjects_service,
+    update_subject as update_subject_service,
 )
 
 
@@ -31,15 +35,7 @@ def get_subjects(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        SubjectModel
-    )
-
-    subjects = db.scalars(
-        statement
-    ).all()
-
-    return subjects
+    return get_subjects_service(db=db)
 
 
 @router.get(
@@ -51,18 +47,7 @@ def get_subject(
     db: Session = Depends(get_db)
 ):
 
-    subject = db.get(
-        SubjectModel,
-        subject_id
-    )
-
-    if subject is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subject not found"
-        )
-
-    return subject
+    return get_subject_service(db=db, subject_id=subject_id)
 
 
 @router.post(
@@ -75,33 +60,7 @@ def create_subject(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        SubjectModel
-    ).where(
-        SubjectModel.code == subject.code
-    )
-
-    existing_subject = db.scalar(
-        statement
-    )
-
-    if existing_subject is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A subject with this code already exists"
-        )
-
-    new_subject = SubjectModel(
-        name=subject.name,
-        code=subject.code,
-        description=subject.description
-    )
-
-    db.add(new_subject)
-    db.commit()
-    db.refresh(new_subject)
-
-    return new_subject
+    return create_subject_service(db=db, subject=subject)
 
 
 @router.put(
@@ -114,42 +73,7 @@ def update_subject(
     db: Session = Depends(get_db)
 ):
 
-    subject = db.get(
-        SubjectModel,
-        subject_id
-    )
-
-    if subject is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subject not found"
-        )
-
-    statement = select(
-        SubjectModel
-    ).where(
-        SubjectModel.code == updated_subject.code,
-        SubjectModel.id != subject_id
-    )
-
-    existing_subject = db.scalar(
-        statement
-    )
-
-    if existing_subject is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A subject with this code already exists"
-        )
-
-    subject.name = updated_subject.name
-    subject.code = updated_subject.code
-    subject.description = updated_subject.description
-
-    db.commit()
-    db.refresh(subject)
-
-    return subject
+    return update_subject_service(db=db, subject_id=subject_id, updated_subject=updated_subject)
 
 
 @router.delete(
@@ -161,18 +85,5 @@ def delete_subject(
     db: Session = Depends(get_db)
 ):
 
-    subject = db.get(
-        SubjectModel,
-        subject_id
-    )
-
-    if subject is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subject not found"
-        )
-
-    db.delete(subject)
-    db.commit()
-
+    delete_subject_service(db=db, subject_id=subject_id)
     return

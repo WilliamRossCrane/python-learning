@@ -1,20 +1,25 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     status
 )
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.teacher import TeacherModel
 from app.schemas.teacher import (
     Teacher,
     TeacherCreate,
     TeacherPatch,
     TeacherUpdate
+)
+from app.services.teacher_service import (
+    create_teacher as create_teacher_service,
+    delete_teacher as delete_teacher_service,
+    get_teacher as get_teacher_service,
+    get_teachers as get_teachers_service,
+    patch_teacher as patch_teacher_service,
+    update_teacher as update_teacher_service,
 )
 
 
@@ -32,15 +37,7 @@ def get_teachers(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        TeacherModel
-    )
-
-    teachers = db.scalars(
-        statement
-    ).all()
-
-    return teachers
+    return get_teachers_service(db=db)
 
 
 @router.get(
@@ -52,18 +49,7 @@ def get_teacher(
     db: Session = Depends(get_db)
 ):
 
-    teacher = db.get(
-        TeacherModel,
-        teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    return teacher
+    return get_teacher_service(db=db, teacher_id=teacher_id)
 
 
 @router.post(
@@ -76,44 +62,7 @@ def create_teacher(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        TeacherModel
-    ).where(
-        TeacherModel.email == teacher.email
-    )
-    existing_email = db.scalar(statement)
-
-    if existing_email is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A teacher with this email already exists"
-        )
-
-    statement = select(
-        TeacherModel
-    ).where(
-        TeacherModel.staff_code == teacher.staff_code
-    )
-    existing_code = db.scalar(statement)
-
-    if existing_code is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A teacher with this staff code already exists"
-        )
-
-    new_teacher = TeacherModel(
-        first_name=teacher.first_name,
-        last_name=teacher.last_name,
-        email=teacher.email,
-        staff_code=teacher.staff_code
-    )
-
-    db.add(new_teacher)
-    db.commit()
-    db.refresh(new_teacher)
-
-    return new_teacher
+    return create_teacher_service(db=db, teacher=teacher)
 
 
 @router.put(
@@ -126,54 +75,7 @@ def update_teacher(
     db: Session = Depends(get_db)
 ):
 
-    teacher = db.get(
-        TeacherModel,
-        teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    statement = select(
-        TeacherModel
-    ).where(
-        TeacherModel.email == updated_teacher.email,
-        TeacherModel.id != teacher_id
-    )
-    existing_email = db.scalar(statement)
-
-    if existing_email is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A teacher with this email already exists"
-        )
-
-    statement = select(
-        TeacherModel
-    ).where(
-        TeacherModel.staff_code == updated_teacher.staff_code,
-        TeacherModel.id != teacher_id
-    )
-    existing_code = db.scalar(statement)
-
-    if existing_code is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A teacher with this staff code already exists"
-        )
-
-    teacher.first_name = updated_teacher.first_name
-    teacher.last_name = updated_teacher.last_name
-    teacher.email = updated_teacher.email
-    teacher.staff_code = updated_teacher.staff_code
-
-    db.commit()
-    db.refresh(teacher)
-
-    return teacher
+    return update_teacher_service(db=db, teacher_id=teacher_id, updated_teacher=updated_teacher)
 
 
 @router.patch(
@@ -186,59 +88,7 @@ def patch_teacher(
     db: Session = Depends(get_db)
 ):
 
-    teacher = db.get(
-        TeacherModel,
-        teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    if updated_teacher.email is not None:
-        statement = select(
-            TeacherModel
-        ).where(
-            TeacherModel.email == updated_teacher.email,
-            TeacherModel.id != teacher_id
-        )
-        existing_email = db.scalar(statement)
-
-        if existing_email is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A teacher with this email already exists"
-            )
-        teacher.email = updated_teacher.email
-
-    if updated_teacher.staff_code is not None:
-        statement = select(
-            TeacherModel
-        ).where(
-            TeacherModel.staff_code == updated_teacher.staff_code,
-            TeacherModel.id != teacher_id
-        )
-        existing_code = db.scalar(statement)
-
-        if existing_code is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A teacher with this staff code already exists"
-            )
-        teacher.staff_code = updated_teacher.staff_code
-
-    if updated_teacher.first_name is not None:
-        teacher.first_name = updated_teacher.first_name
-
-    if updated_teacher.last_name is not None:
-        teacher.last_name = updated_teacher.last_name
-
-    db.commit()
-    db.refresh(teacher)
-
-    return teacher
+    return patch_teacher_service(db=db, teacher_id=teacher_id, updated_teacher=updated_teacher)
 
 
 @router.delete(
@@ -250,18 +100,5 @@ def delete_teacher(
     db: Session = Depends(get_db)
 ):
 
-    teacher = db.get(
-        TeacherModel,
-        teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    db.delete(teacher)
-    db.commit()
-
+    delete_teacher_service(db=db, teacher_id=teacher_id)
     return

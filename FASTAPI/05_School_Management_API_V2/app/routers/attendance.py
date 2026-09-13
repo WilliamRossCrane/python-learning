@@ -3,23 +3,29 @@ from datetime import date
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     status
 )
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.attendance import AttendanceModel
-from app.models.school_class import SchoolClassModel
-from app.models.student import StudentModel
 from app.schemas.attendance import (
     Attendance,
     AttendanceCreate,
     AttendanceStatus,
     AttendanceUpdate
+)
+from app.services.attendance_service import (
+    create_attendance_record as create_attendance_record_service,
+    delete_attendance_record as delete_attendance_record_service,
+    get_attendance_for_class_and_date as get_attendance_for_class_and_date_service,
+    get_attendance_record as get_attendance_record_service,
+    get_attendance_records as get_attendance_records_service,
+    get_class_attendance_records as get_class_attendance_records_service,
+    get_student_attendance_history as get_student_attendance_history_service,
+    patch_attendance_record as patch_attendance_record_service,
+    update_attendance_record as update_attendance_record_service,
 )
 
 
@@ -43,36 +49,15 @@ def get_attendance_records(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        AttendanceModel
+    return get_attendance_records_service(
+        db=db,
+        student_id=student_id,
+        class_id=class_id,
+        attendance_date=attendance_date,
+        attendance_status=attendance_status,
+        limit=limit,
+        offset=offset,
     )
-
-    if student_id is not None:
-        statement = statement.where(
-            AttendanceModel.student_id == student_id
-        )
-
-    if class_id is not None:
-        statement = statement.where(
-            AttendanceModel.class_id == class_id
-        )
-
-    if attendance_date is not None:
-        statement = statement.where(
-            AttendanceModel.attendance_date == attendance_date
-        )
-
-    if attendance_status is not None:
-        statement = statement.where(
-            AttendanceModel.status == attendance_status.value
-        )
-
-    statement = statement.order_by(
-        AttendanceModel.attendance_date.desc(),
-        AttendanceModel.id.desc()
-    ).offset(offset).limit(limit)
-
-    return db.scalars(statement).all()
 
 
 @router.get(
@@ -84,18 +69,7 @@ def get_attendance_record(
     db: Session = Depends(get_db)
 ):
 
-    attendance_record = db.get(
-        AttendanceModel,
-        attendance_id
-    )
-
-    if attendance_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendance record not found"
-        )
-
-    return attendance_record
+    return get_attendance_record_service(db=db, attendance_id=attendance_id)
 
 
 @router.post(
@@ -108,60 +82,7 @@ def create_attendance_record(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        attendance.student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    school_class = db.get(
-        SchoolClassModel,
-        attendance.class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    if student not in school_class.students:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Student is not enrolled in this class"
-        )
-
-    existing_record = db.scalar(
-        select(AttendanceModel).where(
-            AttendanceModel.student_id == attendance.student_id,
-            AttendanceModel.class_id == attendance.class_id,
-            AttendanceModel.attendance_date == attendance.attendance_date
-        )
-    )
-
-    if existing_record is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Attendance record already exists for this student, class, and date"
-        )
-
-    new_record = AttendanceModel(
-        student_id=attendance.student_id,
-        class_id=attendance.class_id,
-        attendance_date=attendance.attendance_date,
-        status=attendance.status.value
-    )
-
-    db.add(new_record)
-    db.commit()
-    db.refresh(new_record)
-
-    return new_record
+    return create_attendance_record_service(db=db, attendance=attendance)
 
 
 @router.put(
@@ -174,69 +95,7 @@ def update_attendance_record(
     db: Session = Depends(get_db)
 ):
 
-    attendance_record = db.get(
-        AttendanceModel,
-        attendance_id
-    )
-
-    if attendance_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendance record not found"
-        )
-
-    student = db.get(
-        StudentModel,
-        updated_attendance.student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    school_class = db.get(
-        SchoolClassModel,
-        updated_attendance.class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    if student not in school_class.students:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Student is not enrolled in this class"
-        )
-
-    duplicate = db.scalar(
-        select(AttendanceModel).where(
-            AttendanceModel.student_id == updated_attendance.student_id,
-            AttendanceModel.class_id == updated_attendance.class_id,
-            AttendanceModel.attendance_date == updated_attendance.attendance_date,
-            AttendanceModel.id != attendance_id
-        )
-    )
-
-    if duplicate is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Attendance record already exists for this student, class, and date"
-        )
-
-    attendance_record.student_id = updated_attendance.student_id
-    attendance_record.class_id = updated_attendance.class_id
-    attendance_record.attendance_date = updated_attendance.attendance_date
-    attendance_record.status = updated_attendance.status.value
-
-    db.commit()
-    db.refresh(attendance_record)
-
-    return attendance_record
+    return update_attendance_record_service(db=db, attendance_id=attendance_id, updated_attendance=updated_attendance)
 
 
 @router.patch(
@@ -249,23 +108,7 @@ def patch_attendance_record(
     db: Session = Depends(get_db)
 ):
 
-    attendance_record = db.get(
-        AttendanceModel,
-        attendance_id
-    )
-
-    if attendance_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendance record not found"
-        )
-
-    attendance_record.status = updated_attendance.status.value
-
-    db.commit()
-    db.refresh(attendance_record)
-
-    return attendance_record
+    return patch_attendance_record_service(db=db, attendance_id=attendance_id, updated_attendance=updated_attendance)
 
 
 @router.delete(
@@ -277,20 +120,7 @@ def delete_attendance_record(
     db: Session = Depends(get_db)
 ):
 
-    attendance_record = db.get(
-        AttendanceModel,
-        attendance_id
-    )
-
-    if attendance_record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendance record not found"
-        )
-
-    db.delete(attendance_record)
-    db.commit()
-
+    delete_attendance_record_service(db=db, attendance_id=attendance_id)
     return
 
 
@@ -303,27 +133,7 @@ def get_student_attendance_history(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    statement = select(
-        AttendanceModel
-    ).where(
-        AttendanceModel.student_id == student_id
-    ).order_by(
-        AttendanceModel.attendance_date.desc(),
-        AttendanceModel.id.desc()
-    )
-
-    return db.scalars(statement).all()
+    return get_student_attendance_history_service(db=db, student_id=student_id)
 
 
 @router.get(
@@ -335,27 +145,7 @@ def get_class_attendance_records(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    statement = select(
-        AttendanceModel
-    ).where(
-        AttendanceModel.class_id == class_id
-    ).order_by(
-        AttendanceModel.attendance_date.desc(),
-        AttendanceModel.id.desc()
-    )
-
-    return db.scalars(statement).all()
+    return get_class_attendance_records_service(db=db, class_id=class_id)
 
 
 @router.get(
@@ -368,24 +158,4 @@ def get_attendance_for_class_and_date(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    statement = select(
-        AttendanceModel
-    ).where(
-        AttendanceModel.class_id == class_id,
-        AttendanceModel.attendance_date == attendance_date
-    ).order_by(
-        AttendanceModel.id
-    )
-
-    return db.scalars(statement).all()
+    return get_attendance_for_class_and_date_service(db=db, class_id=class_id, attendance_date=attendance_date)

@@ -1,22 +1,26 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     status
 )
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.assessment import AssessmentModel
-from app.models.assessment_result import AssessmentResultModel
-from app.models.student import StudentModel
 from app.schemas.assessment_result import (
     AssessmentResult,
     AssessmentResultCreate,
     AssessmentResultUpdate
+)
+from app.services.result_service import (
+    create_result as create_result_service,
+    delete_result as delete_result_service,
+    get_result as get_result_service,
+    get_results as get_results_service,
+    get_results_summary as get_results_summary_service,
+    patch_result as patch_result_service,
+    update_result as update_result_service,
 )
 
 
@@ -38,25 +42,7 @@ def get_results(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        AssessmentResultModel
-    )
-
-    if student_id is not None:
-        statement = statement.where(
-            AssessmentResultModel.student_id == student_id
-        )
-
-    if assessment_id is not None:
-        statement = statement.where(
-            AssessmentResultModel.assessment_id == assessment_id
-        )
-
-    statement = statement.order_by(
-        AssessmentResultModel.id.asc()
-    ).offset(offset).limit(limit)
-
-    return db.scalars(statement).all()
+    return get_results_service(db=db, student_id=student_id, assessment_id=assessment_id, limit=limit, offset=offset)
 
 
 @router.get(
@@ -68,18 +54,7 @@ def get_result(
     db: Session = Depends(get_db)
 ):
 
-    result = db.get(
-        AssessmentResultModel,
-        result_id
-    )
-
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment result not found"
-        )
-
-    return result
+    return get_result_service(db=db, result_id=result_id)
 
 
 @router.get(
@@ -91,38 +66,7 @@ def get_results_summary(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        AssessmentResultModel
-    )
-
-    if student_id is not None:
-        statement = statement.where(
-            AssessmentResultModel.student_id == student_id
-        )
-
-    if assessment_id is not None:
-        statement = statement.where(
-            AssessmentResultModel.assessment_id == assessment_id
-        )
-
-    results = db.scalars(statement).all()
-
-    if not results:
-        return {
-            "total_results": 0,
-            "average_score": 0,
-            "highest_score": 0,
-            "lowest_score": 0
-        }
-
-    scores = [result.score for result in results]
-
-    return {
-        "total_results": len(results),
-        "average_score": round(sum(scores) / len(scores), 2),
-        "highest_score": max(scores),
-        "lowest_score": min(scores)
-    }
+    return get_results_summary_service(db=db, student_id=student_id, assessment_id=assessment_id)
 
 
 @router.post(
@@ -135,58 +79,7 @@ def create_result(
     db: Session = Depends(get_db)
 ):
 
-    assessment = db.get(
-        AssessmentModel,
-        result.assessment_id
-    )
-
-    if assessment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
-        )
-
-    if result.score > assessment.max_score:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Score cannot exceed maximum score of {assessment.max_score}"
-        )
-
-    student = db.get(
-        StudentModel,
-        result.student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    existing_result = db.scalar(
-        select(AssessmentResultModel).where(
-            AssessmentResultModel.assessment_id == result.assessment_id,
-            AssessmentResultModel.student_id == result.student_id
-        )
-    )
-
-    if existing_result is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A result for this student and assessment already exists"
-        )
-
-    new_result = AssessmentResultModel(
-        assessment_id=result.assessment_id,
-        student_id=result.student_id,
-        score=result.score
-    )
-
-    db.add(new_result)
-    db.commit()
-    db.refresh(new_result)
-
-    return new_result
+    return create_result_service(db=db, result=result)
 
 
 @router.put(
@@ -199,67 +92,7 @@ def update_result(
     db: Session = Depends(get_db)
 ):
 
-    result = db.get(
-        AssessmentResultModel,
-        result_id
-    )
-
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment result not found"
-        )
-
-    assessment = db.get(
-        AssessmentModel,
-        updated_result.assessment_id
-    )
-
-    if assessment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
-        )
-
-    if updated_result.score > assessment.max_score:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Score cannot exceed maximum score of {assessment.max_score}"
-        )
-
-    student = db.get(
-        StudentModel,
-        updated_result.student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    duplicate = db.scalar(
-        select(AssessmentResultModel).where(
-            AssessmentResultModel.assessment_id == updated_result.assessment_id,
-            AssessmentResultModel.student_id == updated_result.student_id,
-            AssessmentResultModel.id != result_id
-        )
-    )
-
-    if duplicate is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A result for this student and assessment already exists"
-        )
-
-    result.assessment_id = updated_result.assessment_id
-    result.student_id = updated_result.student_id
-    result.score = updated_result.score
-
-    db.commit()
-    db.refresh(result)
-
-    return result
+    return update_result_service(db=db, result_id=result_id, updated_result=updated_result)
 
 
 @router.patch(
@@ -272,34 +105,7 @@ def patch_result(
     db: Session = Depends(get_db)
 ):
 
-    result = db.get(
-        AssessmentResultModel,
-        result_id
-    )
-
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment result not found"
-        )
-
-    assessment = db.get(
-        AssessmentModel,
-        result.assessment_id
-    )
-
-    if updated_result.score > assessment.max_score:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Score cannot exceed maximum score of {assessment.max_score}"
-        )
-
-    result.score = updated_result.score
-
-    db.commit()
-    db.refresh(result)
-
-    return result
+    return patch_result_service(db=db, result_id=result_id, updated_result=updated_result)
 
 
 @router.delete(
@@ -311,18 +117,5 @@ def delete_result(
     db: Session = Depends(get_db)
 ):
 
-    result = db.get(
-        AssessmentResultModel,
-        result_id
-    )
-
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment result not found"
-        )
-
-    db.delete(result)
-    db.commit()
-
+    delete_result_service(db=db, result_id=result_id)
     return

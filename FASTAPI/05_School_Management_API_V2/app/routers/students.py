@@ -1,20 +1,24 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     status
 )
 
-from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.student import StudentModel
 from app.schemas.student import (
     Student,
     StudentCreate,
     StudentUpdate
+)
+from app.services.student_service import (
+    create_student as create_student_service,
+    delete_student as delete_student_service,
+    get_student as get_student_service,
+    get_students as get_students_service,
+    update_student as update_student_service,
 )
 
 
@@ -38,44 +42,15 @@ def get_students(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(StudentModel)
-
-    if year_level is not None:
-        statement = statement.where(
-            StudentModel.year_level == year_level
-        )
-
-    if search is not None and search.strip():
-        search_term = f"%{search.strip()}%"
-        statement = statement.where(
-            or_(
-                StudentModel.first_name.ilike(search_term),
-                StudentModel.last_name.ilike(search_term),
-                StudentModel.email.ilike(search_term)
-            )
-        )
-
-    sort_columns = {
-        "id": StudentModel.id,
-        "first_name": StudentModel.first_name,
-        "last_name": StudentModel.last_name,
-        "year_level": StudentModel.year_level,
-        "email": StudentModel.email
-    }
-
-    sort_column = sort_columns[sort_by]
-    if sort_order == "desc":
-        statement = statement.order_by(sort_column.desc())
-    else:
-        statement = statement.order_by(sort_column.asc())
-
-    statement = statement.offset(offset).limit(limit)
-
-    students = db.scalars(
-        statement
-    ).all()
-
-    return students
+    return get_students_service(
+        db=db,
+        year_level=year_level,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
@@ -87,18 +62,7 @@ def get_student(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    return student
+    return get_student_service(db=db, student_id=student_id)
 
 
 @router.post(
@@ -111,36 +75,7 @@ def create_student(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        StudentModel
-    ).where(
-        StudentModel.email == student.email
-    )
-
-    existing_student = db.scalar(
-        statement
-    )
-
-    if existing_student is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A student with this email already exists"
-        )
-
-    new_student = StudentModel(
-        first_name=student.first_name,
-        last_name=student.last_name,
-        year_level=student.year_level,
-        email=student.email
-    )
-
-    db.add(new_student)
-
-    db.commit()
-
-    db.refresh(new_student)
-
-    return new_student
+    return create_student_service(db=db, student=student)
 
 
 @router.put(
@@ -153,44 +88,7 @@ def update_student(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    statement = select(
-        StudentModel
-    ).where(
-        StudentModel.email == updated_student.email,
-        StudentModel.id != student_id
-    )
-
-    existing_student = db.scalar(
-        statement
-    )
-
-    if existing_student is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A student with this email already exists"
-        )
-
-    student.first_name = updated_student.first_name
-    student.last_name = updated_student.last_name
-    student.year_level = updated_student.year_level
-    student.email = updated_student.email
-
-    db.commit()
-
-    db.refresh(student)
-
-    return student
+    return update_student_service(db=db, student_id=student_id, updated_student=updated_student)
 
 
 @router.delete(
@@ -202,19 +100,5 @@ def delete_student(
     db: Session = Depends(get_db)
 ):
 
-    student = db.get(
-        StudentModel,
-        student_id
-    )
-
-    if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    db.delete(student)
-
-    db.commit()
-
+    delete_student_service(db=db, student_id=student_id)
     return

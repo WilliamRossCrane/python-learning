@@ -1,22 +1,24 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     status
 )
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.school_class import SchoolClassModel
-from app.models.subject import SubjectModel
-from app.models.teacher import TeacherModel
 from app.schemas.school_class import (
     SchoolClass,
     SchoolClassCreate,
     SchoolClassUpdate
+)
+from app.services.class_service import (
+    create_class as create_class_service,
+    delete_class as delete_class_service,
+    get_class as get_class_service,
+    get_classes as get_classes_service,
+    update_class as update_class_service,
 )
 
 
@@ -39,35 +41,14 @@ def get_classes(
     db: Session = Depends(get_db)
 ):
 
-    statement = select(
-        SchoolClassModel
+    return get_classes_service(
+        db=db,
+        teacher_id=teacher_id,
+        subject_id=subject_id,
+        search=search,
+        limit=limit,
+        offset=offset,
     )
-
-    if teacher_id is not None:
-        statement = statement.where(
-            SchoolClassModel.teacher_id == teacher_id
-        )
-
-    if subject_id is not None:
-        statement = statement.where(
-            SchoolClassModel.subject_id == subject_id
-        )
-
-    if search is not None and search.strip():
-        search_term = f"%{search.strip()}%"
-        statement = statement.where(
-            SchoolClassModel.name.ilike(search_term)
-        )
-
-    statement = statement.order_by(
-        SchoolClassModel.name.asc()
-    ).offset(offset).limit(limit)
-
-    classes = db.scalars(
-        statement
-    ).all()
-
-    return classes
 
 
 @router.get(
@@ -79,18 +60,7 @@ def get_class(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    return school_class
+    return get_class_service(db=db, class_id=class_id)
 
 
 @router.post(
@@ -103,39 +73,7 @@ def create_class(
     db: Session = Depends(get_db)
 ):
 
-    teacher = db.get(
-        TeacherModel,
-        school_class.teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    subject = db.get(
-        SubjectModel,
-        school_class.subject_id
-    )
-
-    if subject is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subject not found"
-        )
-
-    new_class = SchoolClassModel(
-        name=school_class.name,
-        teacher_id=school_class.teacher_id,
-        subject_id=school_class.subject_id
-    )
-
-    db.add(new_class)
-    db.commit()
-    db.refresh(new_class)
-
-    return new_class
+    return create_class_service(db=db, school_class=school_class)
 
 
 @router.put(
@@ -148,47 +86,7 @@ def update_class(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    teacher = db.get(
-        TeacherModel,
-        updated_class.teacher_id
-    )
-
-    if teacher is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    subject = db.get(
-        SubjectModel,
-        updated_class.subject_id
-    )
-
-    if subject is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subject not found"
-        )
-
-    school_class.name = updated_class.name
-    school_class.teacher_id = updated_class.teacher_id
-    school_class.subject_id = updated_class.subject_id
-
-    db.commit()
-    db.refresh(school_class)
-
-    return school_class
+    return update_class_service(db=db, class_id=class_id, updated_class=updated_class)
 
 
 @router.delete(
@@ -200,18 +98,5 @@ def delete_class(
     db: Session = Depends(get_db)
 ):
 
-    school_class = db.get(
-        SchoolClassModel,
-        class_id
-    )
-
-    if school_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found"
-        )
-
-    db.delete(school_class)
-    db.commit()
-
+    delete_class_service(db=db, class_id=class_id)
     return
