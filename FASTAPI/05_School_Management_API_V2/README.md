@@ -49,3 +49,11 @@ Open Swagger:
 ```text
 http://127.0.0.1:8000/docs
 ```
+
+## Testing
+
+Run the automated test suite:
+
+```bash
+pytest
+```

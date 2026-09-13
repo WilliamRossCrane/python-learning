@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from app.database import Base, engine
+from app.database import Base, engine, get_db
 
 from app.models.assessment import AssessmentModel
 from app.models.assessment_result import AssessmentResultModel
@@ -97,13 +98,9 @@ def health_check():
 
 
 @app.get("/health/database")
-def database_health_check():
+def database_health_check(db: Session = Depends(get_db)):
 
-    with engine.connect() as connection:
-
-        connection.execute(
-            text("SELECT 1")
-        )
+    db.execute(text("SELECT 1"))
 
     return {
         "status": "healthy",

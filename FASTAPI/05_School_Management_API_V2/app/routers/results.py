@@ -46,18 +46,6 @@ def get_results(
 
 
 @router.get(
-    "/{result_id}",
-    response_model=AssessmentResult
-)
-def get_result(
-    result_id: int,
-    db: Session = Depends(get_db)
-):
-
-    return get_result_service(db=db, result_id=result_id)
-
-
-@router.get(
     "/summary"
 )
 def get_results_summary(
@@ -67,6 +55,18 @@ def get_results_summary(
 ):
 
     return get_results_summary_service(db=db, student_id=student_id, assessment_id=assessment_id)
+
+
+@router.get(
+    "/{result_id}",
+    response_model=AssessmentResult
+)
+def get_result(
+    result_id: int,
+    db: Session = Depends(get_db)
+):
+
+    return get_result_service(db=db, result_id=result_id)
 
 
 @router.post(
